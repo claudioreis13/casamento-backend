@@ -7,7 +7,9 @@ const cors = require("cors");
 const admin = require("firebase-admin");
 
 // ===== CONFIGURA O FIREBASE =====
-const serviceAccount = require(process.env.FIREBASE_KEY_PATH);
+const serviceAccount = process.env.FIREBASE_KEY_JSON
+  ? JSON.parse(process.env.FIREBASE_KEY_JSON)
+  : require(process.env.FIREBASE_KEY_PATH || "./firebase-key.json.json");
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
