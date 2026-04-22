@@ -1,45 +1,40 @@
-// ===== CARREGA AS VARIÁVEIS DE AMBIENTE =====
 require("dotenv").config();
 
-// ===== IMPORTA AS BIBLIOTECAS =====
 const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
 
-// ===== CONFIGURA O FIREBASE =====
+// ===== FIREBASE =====
 let serviceAccount;
 
-if (process.env.FIREBASE_KEY_JSON) {
-  // No Railway: lê da variável de ambiente
-  serviceAccount = JSON.parse(process.env.FIREBASE_KEY_JSON);
-} else {
-  // Local: lê do arquivo
-  serviceAccount = require("./firebase-key.json.json");
+try {
+  const raw = process.env.FIREBASE_KEY_JSON;
+  if (!raw) throw new Error("FIREBASE_KEY_JSON não definida");
+  serviceAccount = JSON.parse(raw);
+  console.log("✅ Chave Firebase carregada da variável de ambiente");
+} catch (e) {
+  console.error("❌ Erro ao carregar chave Firebase:", e.message);
+  process.exit(1); // Para o servidor imediatamente com mensagem clara
 }
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 
-// ===== CONFIGURA O SERVIDOR =====
+const db = admin.firestore();
+const colecao = db.collection("reservados");
+
+// ===== SERVIDOR =====
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Permite que o site acesse o backend
 app.use(cors());
-
-// Permite receber dados em JSON
 app.use(express.json());
 
-// ===== ROTA DE TESTE =====
-// Acesse http://localhost:3001/ para verificar se está funcionando
 app.get("/", (req, res) => {
   res.json({ status: "ok", mensagem: "Backend do casamento funcionando! 💍" });
 });
 
-// ===== ROTA — LISTAR PRESENTES RESERVADOS =====
-// GET /reservados
-// Retorna a lista de IDs dos presentes já reservados
 app.get("/reservados", async (req, res) => {
   try {
     const snapshot = await colecao.get();
@@ -51,39 +46,23 @@ app.get("/reservados", async (req, res) => {
   }
 });
 
-// ===== ROTA — RESERVAR UM PRESENTE =====
-// POST /reservar
-// Recebe { id: "nome-do-presente" } e salva no banco
 app.post("/reservar", async (req, res) => {
   const { id } = req.body;
-
-  // Valida se o ID foi enviado
-  if (!id) {
-    return res.status(400).json({ erro: "ID do presente é obrigatório" });
-  }
+  if (!id) return res.status(400).json({ erro: "ID do presente é obrigatório" });
 
   try {
-    // Verifica se o presente já está reservado
     const snapshot = await colecao.where("id", "==", id).get();
-
     if (!snapshot.empty) {
       return res.status(409).json({ erro: "Presente já reservado", id });
     }
-
-    // Salva a reserva no banco
-    await colecao.add({
-      id,
-      reservadoEm: new Date().toISOString(),
-    });
-
-    res.json({ sucesso: true, mensagem: `Presente "${id}" reservado com sucesso!` });
+    await colecao.add({ id, reservadoEm: new Date().toISOString() });
+    res.json({ sucesso: true, mensagem: `Presente "${id}" reservado!` });
   } catch (erro) {
     console.error("Erro ao reservar:", erro);
     res.status(500).json({ erro: "Erro ao reservar presente" });
   }
 });
 
-// ===== INICIA O SERVIDOR =====
 app.listen(PORT, () => {
-  console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
+  console.log(`✅ Servidor rodando na porta ${PORT}`);
 });
