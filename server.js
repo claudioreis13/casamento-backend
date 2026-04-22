@@ -7,17 +7,19 @@ const cors = require("cors");
 const admin = require("firebase-admin");
 
 // ===== CONFIGURA O FIREBASE =====
-const serviceAccount = process.env.FIREBASE_KEY_JSON
-  ? JSON.parse(process.env.FIREBASE_KEY_JSON)
-  : require(process.env.FIREBASE_KEY_PATH || "./firebase-key.json.json");
+let serviceAccount;
+
+if (process.env.FIREBASE_KEY_JSON) {
+  // No Railway: lê da variável de ambiente
+  serviceAccount = JSON.parse(process.env.FIREBASE_KEY_JSON);
+} else {
+  // Local: lê do arquivo
+  serviceAccount = require("./firebase-key.json.json");
+}
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
-
-// Referência ao banco de dados
-const db = admin.firestore();
-const colecao = db.collection("reservados");
 
 // ===== CONFIGURA O SERVIDOR =====
 const app = express();
